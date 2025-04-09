@@ -1,6 +1,6 @@
+import os
 import time
 import re
-import os
 import pandas as pd
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -10,7 +10,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 
 def setup_driver():
     chrome_options = Options()
@@ -24,14 +23,18 @@ def setup_driver():
         "profile.default_content_setting_values.notifications": 2
     })
 
-    # ✅ No manual path needed with ChromeDriverManager
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    # ✅ Set correct path to Chromium and Chromedriver on Render
+    chrome_options.binary_location = os.environ.get("GOOGLE_CHROME_BIN", "/usr/bin/chromium")
+    driver = webdriver.Chrome(
+        service=Service(os.environ.get("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")),
+        options=chrome_options
+    )
     return driver
 
 def close_popup(driver):
     try:
-        close_popup_button = driver.find_element(By.CSS_SELECTOR, "button.dba1b3bddf.e99c25fd33.aabf155f9a.f42ee7b31a.a86bcdb87f.b02ceec9d7")
-        close_popup_button.click()
+        button = driver.find_element(By.CSS_SELECTOR, "button.dba1b3bddf.e99c25fd33.aabf155f9a.f42ee7b31a.a86bcdb87f.b02ceec9d7")
+        button.click()
         print("Popup closed")
     except:
         print("No popup found")
@@ -46,11 +49,10 @@ def load_full_page(driver):
             print("Button clicked ..")
             time.sleep(20)
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            print("Scrolled back to the bottom of the page")
+            print("Scrolled to bottom again")
         except Exception as e:
-            print("Button is no longer available or an error occurred:", e)
+            print("No more button or error:", e)
             break
-    print("Finished clicking the button")
 
 def scrape_hotel_data(page_source):
     soup = BeautifulSoup(page_source, 'html.parser')
@@ -58,56 +60,43 @@ def scrape_hotel_data(page_source):
     hotels_data = []
 
     for hotel in hotels:
-        name_element = hotel.find('div', {'data-testid': 'title'})
-        name = name_element.text.strip() if name_element else None
+        name = hotel.find('div', {'data-testid': 'title'})
+        location = hotel.find('span', {'data-testid': 'address'})
+        price_elem = hotel.find('span', {'data-testid': 'price-and-discounted-price'})
+        availability = hotel.find('div', {'data-testid': 'recommended-units'})
 
-        location_element = hotel.find('span', {'data-testid': 'address'})
-        location = location_element.text.strip() if location_element else None
-
-        price_element = hotel.find('span', {'data-testid': 'price-and-discounted-price'})
-        price_str = price_element.text.strip() if price_element else None
+        price_str = price_elem.text.strip() if price_elem else None
         price = int(re.findall(r'\d+', price_str.replace(',', ''))[0]) if price_str else None
 
-        room_availability_element = hotel.find('div', {'data-testid': 'recommended-units'})
-        if room_availability_element:
-            inner_div = room_availability_element.find('div', class_='c6f064a3e8')
-            room_availability = inner_div.text.strip() if inner_div else None
-        else:
-            room_availability = None
-
-        today = datetime.now().strftime('%Y-%m-%d')
+        inner_div = availability.find('div', class_='c6f064a3e8') if availability else None
+        availability_text = inner_div.text.strip() if inner_div else None
 
         hotels_data.append({
-            'name': name,
-            'location': location,
+            'name': name.text.strip() if name else None,
+            'location': location.text.strip() if location else None,
             'price(in rupees)': price,
-            'room_availability': room_availability,
-            'date': today
+            'room_availability': availability_text,
+            'date': datetime.now().strftime('%Y-%m-%d')
         })
 
     return hotels_data
 
-def generate_url(city_name, checkin_date, checkout_date, adults, rooms, children):
-    return f"https://www.booking.com/searchresults.html?ss={city_name}&checkin={checkin_date}&checkout={checkout_date}&group_adults={adults}&no_rooms={rooms}&group_children={children}"
+def generate_url(city, checkin, checkout, adults, rooms, children):
+    return f"https://www.booking.com/searchresults.html?ss={city}&checkin={checkin}&checkout={checkout}&group_adults={adults}&no_rooms={rooms}&group_children={children}"
 
 def scrape_hotels(city, checkin, checkout, adults, children, rooms):
     driver = setup_driver()
-    url = generate_url(city, checkin, checkout, adults, rooms, children)
+    driver.get(generate_url(city, checkin, checkout, adults, rooms, children))
 
-    driver.get(url)
     time.sleep(10)
-
     close_popup(driver)
     driver.maximize_window()
-
     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "body")))
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight - window.innerHeight / 6);")
     time.sleep(10)
 
     load_full_page(driver)
 
-    page_source = driver.page_source
-    hotels_data = scrape_hotel_data(page_source)
-
+    data = scrape_hotel_data(driver.page_source)
     driver.quit()
-    return pd.DataFrame(hotels_data)
+    return pd.DataFrame(data)
