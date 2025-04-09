@@ -1,6 +1,6 @@
-import os
 import time
 import re
+import os
 import pandas as pd
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -10,6 +10,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 
 def setup_driver():
     chrome_options = Options()
@@ -23,12 +24,8 @@ def setup_driver():
         "profile.default_content_setting_values.notifications": 2
     })
 
-    # Set correct paths for Render deployment
-    chrome_options.binary_location = os.environ.get("GOOGLE_CHROME_BIN", "/usr/bin/chromium")
-    driver = webdriver.Chrome(
-        service=Service(os.environ.get("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")),
-        options=chrome_options
-    )
+    # ✅ No manual path needed with ChromeDriverManager
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     return driver
 
 def close_popup(driver):
@@ -69,7 +66,6 @@ def scrape_hotel_data(page_source):
 
         price_element = hotel.find('span', {'data-testid': 'price-and-discounted-price'})
         price_str = price_element.text.strip() if price_element else None
-
         price = int(re.findall(r'\d+', price_str.replace(',', ''))[0]) if price_str else None
 
         room_availability_element = hotel.find('div', {'data-testid': 'recommended-units'})
