@@ -5,6 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hotel Data Scraper</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* You can keep this in static/style.css as well */
+        #loadingSpinner {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -31,23 +54,26 @@
             <button type="submit">Scrape and Download Data</button>
         </form>
 
+        <!-- ✅ Flask messages -->
         {% if message %}
-        <p>{{ message }}</p>
+        <p style="color: green;">{{ message }}</p>
         {% endif %}
         {% if filename %}
-        <p>Download your data: <a href="{{ url_for('download_file', filename=filename) }}">Download CSV</a></p>
+        <p><strong>Download your data:</strong> <a href="{{ url_for('download_file', filename=filename) }}">Download CSV</a></p>
         {% endif %}
     </div>
 
     <!-- 🌀 Loading Spinner Block -->
     <div id="loadingSpinner">
         <div class="loader"></div>
-        <p>Scraping in progress...</p>
+        <p>Scraping in progress... please wait!</p>
     </div>
 
+    <!-- ✅ JavaScript to show spinner -->
     <script>
         const form = document.querySelector('form');
         const spinner = document.getElementById('loadingSpinner');
+
         form.addEventListener('submit', () => {
             spinner.style.display = 'block';
         });
