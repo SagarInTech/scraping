@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, send_from_directory, url_for
 import os
 import pandas as pd
-from scraper import scrape_hotels  # Make sure this is your scraping logic
+from scraping import scrape_hotels
+
 
 app = Flask(__name__)
 
