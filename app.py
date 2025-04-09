@@ -1,8 +1,7 @@
 from flask import Flask, render_template, request, send_from_directory, url_for
 import os
 import pandas as pd
-from scraping import scrape_hotels
-
+from scraping import scrape_hotels  # ✅ Matches your filename
 
 app = Flask(__name__)
 
@@ -47,4 +46,5 @@ def download_file(filename):
     return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
