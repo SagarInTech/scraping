@@ -1,43 +1,21 @@
-from flask import Flask, render_template, request, send_from_directory
-from scraping import scrape_hotels
+from flask import Flask, render_template, request
+from scraper import run_scraper
 import os
 
 app = Flask(__name__)
 
-# Folder where CSV files are saved
-DOWNLOAD_FOLDER = 'files'
-
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/scrape', methods=['POST'])
+@app.route("/scrape", methods=["POST"])
 def scrape():
-    # Retrieve form data from the HTML form
-    city_name = request.form['city_name']
-    checkin_date = request.form['checkin_date']
-    checkout_date = request.form['checkout_date']
-    adults = request.form['adults']
-    children = request.form['children']
-    rooms = request.form['rooms']
-    
-    # Ensure the 'files/' directory exists
-    os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+    query = request.form.get("query")
+    if query:
+        data = run_scraper(query)
+        return render_template("result.html", data=data, query=query)
+    return render_template("index.html", error="Please enter a search query.")
 
-    # Create the filename and full path for saving the CSV
-    filename = f"{city_name}_{checkin_date}_data.csv"
-    filepath = os.path.join(DOWNLOAD_FOLDER, filename)
-
-    # Perform hotel scraping and save data
-    scrape_hotels(city_name, checkin_date, checkout_date, adults, children, rooms, filepath)
-
-    # Return the page with download link
-    return render_template('index.html', message="Data scraping completed!", filename=filename)
-
-@app.route('/download/<filename>')
-def download_file(filename):
-    # Allow downloading the file from 'files/' directory
-    return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # Use dynamic port from Render
+    app.run(host="0.0.0.0", port=port, debug=True)  # Bind to 0.0.0.0
