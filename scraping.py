@@ -13,7 +13,7 @@ from datetime import datetime
 
 def setup_driver():
     options = Options()
-    options.add_argument("--headless")  # ✅ Run in headless mode (no GUI)
+    options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
@@ -89,17 +89,12 @@ def scrape_hotel_data(page_source):
 
     return hotels_data
 
-def save_data_to_csv(data, filepath, city_name):
-    df = pd.DataFrame(data)
-    df.to_csv(filepath, index=False)
-    print(f"Data saved to {filepath}")
-
 def generate_url(city_name, checkin_date, checkout_date, adults, rooms, children):
     return f"https://www.booking.com/searchresults.html?ss={city_name}&checkin={checkin_date}&checkout={checkout_date}&group_adults={adults}&no_rooms={rooms}&group_children={children}"
 
-def scrape_hotels(city_name, checkin_date, checkout_date, adults, children, rooms, filepath):
+def scrape_hotels(city, checkin, checkout, adults, children, rooms):
     driver = setup_driver()
-    url = generate_url(city_name, checkin_date, checkout_date, adults, rooms, children)
+    url = generate_url(city, checkin, checkout, adults, rooms, children)
 
     driver.get(url)
     time.sleep(10)
@@ -116,5 +111,5 @@ def scrape_hotels(city_name, checkin_date, checkout_date, adults, children, room
     page_source = driver.page_source
     hotels_data = scrape_hotel_data(page_source)
 
-    save_data_to_csv(hotels_data, filepath, city_name)
     driver.quit()
+    return pd.DataFrame(hotels_data)
