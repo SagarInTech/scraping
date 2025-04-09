@@ -4,11 +4,13 @@ services:
     env: python
     buildCommand: |
       apt-get update && \
-      apt-get install -y chromium && \
+      apt-get install -y chromium chromium-driver && \
       pip install -r requirements.txt
     startCommand: python app.py
     envVars:
       - key: GOOGLE_CHROME_BIN
         value: /usr/bin/chromium
+      - key: CHROMEDRIVER_PATH
+        value: /usr/bin/chromedriver
       - key: PYTHONUNBUFFERED
         value: "1"
