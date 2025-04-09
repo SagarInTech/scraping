@@ -1,32 +1,34 @@
+import os
+import time
+import re
+import pandas as pd
+from datetime import datetime
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-import time
-from bs4 import BeautifulSoup
-import pandas as pd
-import re
-from datetime import datetime
 
 def setup_driver():
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920x1080")
-    options.add_argument("--remote-debugging-port=9222")
-    options.add_experimental_option("prefs", {
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920x1080")
+    chrome_options.add_argument("--remote-debugging-port=9222")
+    chrome_options.add_experimental_option("prefs", {
         "profile.default_content_setting_values.notifications": 2
     })
 
-    # Important: Set binary location for Chromium in Render
-    options.binary_location = "/usr/bin/chromium-browser"
-
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    # Set correct paths for Render deployment
+    chrome_options.binary_location = os.environ.get("GOOGLE_CHROME_BIN", "/usr/bin/chromium")
+    driver = webdriver.Chrome(
+        service=Service(os.environ.get("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")),
+        options=chrome_options
+    )
     return driver
 
 def close_popup(driver):
@@ -68,10 +70,7 @@ def scrape_hotel_data(page_source):
         price_element = hotel.find('span', {'data-testid': 'price-and-discounted-price'})
         price_str = price_element.text.strip() if price_element else None
 
-        if price_str:
-            price = int(re.findall(r'\d+', price_str.replace(',', ''))[0])
-        else:
-            price = None
+        price = int(re.findall(r'\d+', price_str.replace(',', ''))[0]) if price_str else None
 
         room_availability_element = hotel.find('div', {'data-testid': 'recommended-units'})
         if room_availability_element:
@@ -80,15 +79,14 @@ def scrape_hotel_data(page_source):
         else:
             room_availability = None
 
-        today = datetime.now()
-        checkin_date = today.strftime('%Y-%m-%d')
+        today = datetime.now().strftime('%Y-%m-%d')
 
         hotels_data.append({
             'name': name,
             'location': location,
             'price(in rupees)': price,
             'room_availability': room_availability,
-            'date': checkin_date
+            'date': today
         })
 
     return hotels_data
