@@ -23,18 +23,24 @@ def setup_driver():
         "profile.default_content_setting_values.notifications": 2
     })
 
-    # ✅ Set correct path to Chromium and Chromedriver on Render
-    chrome_options.binary_location = os.environ.get("GOOGLE_CHROME_BIN", "/usr/bin/chromium")
+    # ✅ Only set binary location if it's explicitly defined
+    chrome_bin = os.environ.get("GOOGLE_CHROME_BIN")
+    if chrome_bin:
+        chrome_options.binary_location = chrome_bin
+
     driver = webdriver.Chrome(
-        service=Service(os.environ.get("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")),
+        service=Service(os.environ["CHROMEDRIVER_PATH"]),
         options=chrome_options
     )
     return driver
 
 def close_popup(driver):
     try:
-        button = driver.find_element(By.CSS_SELECTOR, "button.dba1b3bddf.e99c25fd33.aabf155f9a.f42ee7b31a.a86bcdb87f.b02ceec9d7")
-        button.click()
+        close_popup_button = driver.find_element(
+            By.CSS_SELECTOR,
+            "button.dba1b3bddf.e99c25fd33.aabf155f9a.f42ee7b31a.a86bcdb87f.b02ceec9d7"
+        )
+        close_popup_button.click()
         print("Popup closed")
     except:
         print("No popup found")
@@ -46,13 +52,13 @@ def load_full_page(driver):
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "button.dba1b3bddf.e99c25fd33.ea757ee64b.f1c8772a7d.ea220f5cdc.f870aa1234"))
             )
             button.click()
-            print("Button clicked ..")
+            print("Load more button clicked...")
             time.sleep(20)
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            print("Scrolled to bottom again")
         except Exception as e:
-            print("No more button or error:", e)
+            print("No more load button or error occurred:", e)
             break
+    print("Finished loading full page.")
 
 def scrape_hotel_data(page_source):
     soup = BeautifulSoup(page_source, 'html.parser')
@@ -60,43 +66,56 @@ def scrape_hotel_data(page_source):
     hotels_data = []
 
     for hotel in hotels:
-        name = hotel.find('div', {'data-testid': 'title'})
-        location = hotel.find('span', {'data-testid': 'address'})
-        price_elem = hotel.find('span', {'data-testid': 'price-and-discounted-price'})
-        availability = hotel.find('div', {'data-testid': 'recommended-units'})
+        name_element = hotel.find('div', {'data-testid': 'title'})
+        name = name_element.text.strip() if name_element else None
 
-        price_str = price_elem.text.strip() if price_elem else None
+        location_element = hotel.find('span', {'data-testid': 'address'})
+        location = location_element.text.strip() if location_element else None
+
+        price_element = hotel.find('span', {'data-testid': 'price-and-discounted-price'})
+        price_str = price_element.text.strip() if price_element else None
         price = int(re.findall(r'\d+', price_str.replace(',', ''))[0]) if price_str else None
 
-        inner_div = availability.find('div', class_='c6f064a3e8') if availability else None
-        availability_text = inner_div.text.strip() if inner_div else None
+        room_availability_element = hotel.find('div', {'data-testid': 'recommended-units'})
+        if room_availability_element:
+            inner_div = room_availability_element.find('div', class_='c6f064a3e8')
+            room_availability = inner_div.text.strip() if inner_div else None
+        else:
+            room_availability = None
+
+        today = datetime.now().strftime('%Y-%m-%d')
 
         hotels_data.append({
-            'name': name.text.strip() if name else None,
-            'location': location.text.strip() if location else None,
+            'name': name,
+            'location': location,
             'price(in rupees)': price,
-            'room_availability': availability_text,
-            'date': datetime.now().strftime('%Y-%m-%d')
+            'room_availability': room_availability,
+            'date': today
         })
 
     return hotels_data
 
-def generate_url(city, checkin, checkout, adults, rooms, children):
-    return f"https://www.booking.com/searchresults.html?ss={city}&checkin={checkin}&checkout={checkout}&group_adults={adults}&no_rooms={rooms}&group_children={children}"
+def generate_url(city_name, checkin_date, checkout_date, adults, rooms, children):
+    return f"https://www.booking.com/searchresults.html?ss={city_name}&checkin={checkin_date}&checkout={checkout_date}&group_adults={adults}&no_rooms={rooms}&group_children={children}"
 
 def scrape_hotels(city, checkin, checkout, adults, children, rooms):
     driver = setup_driver()
-    driver.get(generate_url(city, checkin, checkout, adults, rooms, children))
+    url = generate_url(city, checkin, checkout, adults, rooms, children)
 
+    driver.get(url)
     time.sleep(10)
+
     close_popup(driver)
     driver.maximize_window()
+
     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "body")))
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight - window.innerHeight / 6);")
     time.sleep(10)
 
     load_full_page(driver)
 
-    data = scrape_hotel_data(driver.page_source)
+    page_source = driver.page_source
+    hotels_data = scrape_hotel_data(page_source)
+
     driver.quit()
-    return pd.DataFrame(data)
+    return pd.DataFrame(hotels_data)
