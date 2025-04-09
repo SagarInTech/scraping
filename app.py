@@ -1,6 +1,6 @@
+import os
 from flask import Flask, render_template, request
 from scraper import run_scraper
-import os
 
 app = Flask(__name__)
 
@@ -17,5 +17,6 @@ def scrape():
     return render_template("index.html", error="Please enter a search query.")
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Use dynamic port from Render
-    app.run(host="0.0.0.0", port=port, debug=True)  # Bind to 0.0.0.0
+    port = int(os.environ.get("PORT", 10000))  # Port from render.yaml
+    app.run(host="0.0.0.0", port=port, debug=True)
+    
