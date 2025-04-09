@@ -38,5 +38,19 @@
         <p>Download your data: <a href="{{ url_for('download_file', filename=filename) }}">Download CSV</a></p>
         {% endif %}
     </div>
+
+    <!-- 🌀 Loading Spinner Block -->
+    <div id="loadingSpinner">
+        <div class="loader"></div>
+        <p>Scraping in progress...</p>
+    </div>
+
+    <script>
+        const form = document.querySelector('form');
+        const spinner = document.getElementById('loadingSpinner');
+        form.addEventListener('submit', () => {
+            spinner.style.display = 'block';
+        });
+    </script>
 </body>
 </html>
